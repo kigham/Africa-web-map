@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>Socio-economic and environmental situation of african countries</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
+        <script src="data/Africa_Countries_0.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+            highlightLayer.openPopup();
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-48.466555554844184,-61.913057518182576],[39.268178876792895,89.03780096312454]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var title = new L.Control({'position':'topright'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>Socio-economic and environmental situation of african countries</h2>';
+        };
+        title.addTo(map);
+        var abstract = new L.Control({'position':'bottomleft'});
+        abstract.onAdd = function (map) {
+            this._div = L.DomUtil.create('div',
+            'leaflet-control abstract');
+            this._div.id = 'abstract'
+                this._div.setAttribute("onmouseenter", "abstract.show()");
+                this._div.setAttribute("onmouseleave", "abstract.hide()");
+                this.hide();
+                return this._div;
+            };
+            abstract.hide = function () {
+                this._div.classList.remove("abstractUncollapsed");
+                this._div.classList.add("abstract");
+                this._div.innerHTML = 'i'
+            }
+            abstract.show = function () {
+                this._div.classList.remove("abstract");
+                this._div.classList.add("abstractUncollapsed");
+                this._div.innerHTML = 'Abstract <br />This project involves the creation of an interactive web map visualizing population distribution across African countries in relation to others element like GDP, percentage of forest cover, Co2 emission etc. The dataset, derived from the Africa_datadatabase and World Bank. The population figures were classified into five population ranges using QGIS. The classification highlights spatial variations in population size, ranging from very low (below 2 million) to very high (above 200 million). <br />Using QGIS symbology tools, each range was represented by a distinct colour gradient—from light yellow for sparsely populated countries to dark red for highly populated ones—providing an intuitive visual interpretation of demographic patterns. The processed map was realised in QGIS web map for online visualization, enabling users to interactively explore data across Africa. This web map serves as a simple yet powerful tool for understanding population distribution in relation to others element underline above, supporting further spatial analysis, and promoting data-driven decision-making in regional planning and development studies.';
+        };
+        abstract.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+            map.setMaxBounds(map.getBounds());
+        }
+        function pop_Africa_Countries_0(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['COUNTRYAFF'] !== null ? autolinker.link(String(feature.properties['COUNTRYAFF']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TOTPOP</th>\
+                        <td>' + (feature.properties['TOTPOP'] !== null ? autolinker.link(String(feature.properties['TOTPOP']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Population'] !== null ? autolinker.link(String(feature.properties['Population']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_Country</th>\
+                        <td class="visible-with-data" id="africa_data_Country">' + (feature.properties['africa_data_Country'] !== null ? autolinker.link(String(feature.properties['africa_data_Country']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_GDP</th>\
+                        <td class="visible-with-data" id="africa_data_GDP">' + (feature.properties['africa_data_GDP'] !== null ? autolinker.link(String(feature.properties['africa_data_GDP']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_Minimum wage</th>\
+                        <td>' + (feature.properties['africa_data_Minimum wage'] !== null ? autolinker.link(String(feature.properties['africa_data_Minimum wage']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_Tax revenue (%)</th>\
+                        <td>' + (feature.properties['africa_data_Tax revenue (%)'] !== null ? autolinker.link(String(feature.properties['africa_data_Tax revenue (%)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_Unemployment rate</th>\
+                        <td>' + (feature.properties['africa_data_Unemployment rate'] !== null ? autolinker.link(String(feature.properties['africa_data_Unemployment rate']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_Forested Area (%)</th>\
+                        <td class="visible-with-data" id="africa_data_Forested Area (%)">' + (feature.properties['africa_data_Forested Area (%)'] !== null ? autolinker.link(String(feature.properties['africa_data_Forested Area (%)']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_Co2-Emissions</th>\
+                        <td class="visible-with-data" id="africa_data_Co2-Emissions">' + (feature.properties['africa_data_Co2-Emissions'] !== null ? autolinker.link(String(feature.properties['africa_data_Co2-Emissions']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_Gasoline Price</th>\
+                        <td>' + (feature.properties['africa_data_Gasoline Price'] !== null ? autolinker.link(String(feature.properties['africa_data_Gasoline Price']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">africa_data_Population</th>\
+                        <td class="visible-with-data" id="africa_data_Population">' + (feature.properties['africa_data_Population'] !== null ? autolinker.link(String(feature.properties['africa_data_Population']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Africa_Countries_0_0(feature) {
+            if (feature.properties['TOTPOP'] >= 93920.000000 && feature.properties['TOTPOP'] <= 2014034.600000 ) {
+                return {
+                pane: 'pane_Africa_Countries_0',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,178,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['TOTPOP'] >= 2014034.600000 && feature.properties['TOTPOP'] <= 8578321.200000 ) {
+                return {
+                pane: 'pane_Africa_Countries_0',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(254,204,92,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['TOTPOP'] >= 8578321.200000 && feature.properties['TOTPOP'] <= 15711305.200000 ) {
+                return {
+                pane: 'pane_Africa_Countries_0',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(253,141,60,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['TOTPOP'] >= 15711305.200000 && feature.properties['TOTPOP'] <= 31180825.800000 ) {
+                return {
+                pane: 'pane_Africa_Countries_0',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(240,59,32,1.0)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['TOTPOP'] >= 31180825.800000 && feature.properties['TOTPOP'] <= 190632261.000000 ) {
+                return {
+                pane: 'pane_Africa_Countries_0',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(189,0,38,1.0)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_Africa_Countries_0');
+        map.getPane('pane_Africa_Countries_0').style.zIndex = 400;
+        map.getPane('pane_Africa_Countries_0').style['mix-blend-mode'] = 'normal';
+        var layer_Africa_Countries_0 = new L.geoJson(json_Africa_Countries_0, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Africa_Countries_0',
+            layerName: 'layer_Africa_Countries_0',
+            pane: 'pane_Africa_Countries_0',
+            onEachFeature: pop_Africa_Countries_0,
+            style: style_Africa_Countries_0_0,
+        });
+        bounds_group.addLayer(layer_Africa_Countries_0);
+        map.addLayer(layer_Africa_Countries_0);
+        var overlaysTree = [
+            {label: 'Africa_Countries<br /><table><tr><td style="text-align: center;"><img src="legend/Africa_Countries_0_9392020140350.png" /></td><td>93920 - 2014035</td></tr><tr><td style="text-align: center;"><img src="legend/Africa_Countries_0_201403585783211.png" /></td><td>2014035 - 8578321</td></tr><tr><td style="text-align: center;"><img src="legend/Africa_Countries_0_8578321157113052.png" /></td><td>8578321 - 15711305</td></tr><tr><td style="text-align: center;"><img src="legend/Africa_Countries_0_15711305311808263.png" /></td><td>15711305 - 31180826</td></tr><tr><td style="text-align: center;"><img src="legend/Africa_Countries_0_311808261906322614.png" /></td><td>31180826 - 190632261</td></tr></table>', layer: layer_Africa_Countries_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"NAME": "str","Population": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_NAME = document.createElement('div');
+            div_NAME.id = "div_NAME";
+            div_NAME.className= "filterselect";
+            document.getElementById("menu").appendChild(div_NAME);
+            sel_NAME = document.createElement('select');
+            sel_NAME.multiple = true;
+            sel_NAME.size = 10;
+            sel_NAME.id = "sel_NAME";
+            var NAME_options_str = "<option value='' unselected></option>";
+            sel_NAME.onchange = function(){filterFunc()};
+            NAME_options_str  += '<option value="Algeria">Algeria</option>';
+            NAME_options_str  += '<option value="Angola">Angola</option>';
+            NAME_options_str  += '<option value="Benin">Benin</option>';
+            NAME_options_str  += '<option value="Botswana">Botswana</option>';
+            NAME_options_str  += '<option value="Burkina Faso">Burkina Faso</option>';
+            NAME_options_str  += '<option value="Burundi">Burundi</option>';
+            NAME_options_str  += '<option value="Cameroon">Cameroon</option>';
+            NAME_options_str  += '<option value="Cape Verde">Cape Verde</option>';
+            NAME_options_str  += '<option value="Central African Republic">Central African Republic</option>';
+            NAME_options_str  += '<option value="Chad">Chad</option>';
+            NAME_options_str  += '<option value="Comoros">Comoros</option>';
+            NAME_options_str  += '<option value="Congo DRC">Congo DRC</option>';
+            NAME_options_str  += '<option value="Djibouti">Djibouti</option>';
+            NAME_options_str  += '<option value="Egypt">Egypt</option>';
+            NAME_options_str  += '<option value="Equatorial Guinea">Equatorial Guinea</option>';
+            NAME_options_str  += '<option value="Eritrea">Eritrea</option>';
+            NAME_options_str  += '<option value="Eswatini">Eswatini</option>';
+            NAME_options_str  += '<option value="Ethiopia">Ethiopia</option>';
+            NAME_options_str  += '<option value="Gabon">Gabon</option>';
+            NAME_options_str  += '<option value="Ghana">Ghana</option>';
+            NAME_options_str  += '<option value="Guinea">Guinea</option>';
+            NAME_options_str  += '<option value="Guinea-Bissau">Guinea-Bissau</option>';
+            NAME_options_str  += '<option value="Ivory Coast">Ivory Coast</option>';
+            NAME_options_str  += '<option value="Kenya">Kenya</option>';
+            NAME_options_str  += '<option value="Lesotho">Lesotho</option>';
+            NAME_options_str  += '<option value="Liberia">Liberia</option>';
+            NAME_options_str  += '<option value="Libya">Libya</option>';
+            NAME_options_str  += '<option value="Madagascar">Madagascar</option>';
+            NAME_options_str  += '<option value="Malawi">Malawi</option>';
+            NAME_options_str  += '<option value="Mali">Mali</option>';
+            NAME_options_str  += '<option value="Mauritania">Mauritania</option>';
+            NAME_options_str  += '<option value="Mauritius">Mauritius</option>';
+            NAME_options_str  += '<option value="Morocco">Morocco</option>';
+            NAME_options_str  += '<option value="Mozambique">Mozambique</option>';
+            NAME_options_str  += '<option value="Namibia">Namibia</option>';
+            NAME_options_str  += '<option value="Niger">Niger</option>';
+            NAME_options_str  += '<option value="Nigeria">Nigeria</option>';
+            NAME_options_str  += '<option value="Republic of the Congo">Republic of the Congo</option>';
+            NAME_options_str  += '<option value="Rwanda">Rwanda</option>';
+            NAME_options_str  += '<option value="Sao Tome and Principe">Sao Tome and Principe</option>';
+            NAME_options_str  += '<option value="Senegal">Senegal</option>';
+            NAME_options_str  += '<option value="Seychelles">Seychelles</option>';
+            NAME_options_str  += '<option value="Sierra Leone">Sierra Leone</option>';
+            NAME_options_str  += '<option value="Somalia">Somalia</option>';
+            NAME_options_str  += '<option value="South Africa">South Africa</option>';
+            NAME_options_str  += '<option value="South Sudan">South Sudan</option>';
+            NAME_options_str  += '<option value="Sudan">Sudan</option>';
+            NAME_options_str  += '<option value="Tanzania">Tanzania</option>';
+            NAME_options_str  += '<option value="The Gambia">The Gambia</option>';
+            NAME_options_str  += '<option value="Togo">Togo</option>';
+            NAME_options_str  += '<option value="Tunisia">Tunisia</option>';
+            NAME_options_str  += '<option value="Uganda">Uganda</option>';
+            NAME_options_str  += '<option value="Zambia">Zambia</option>';
+            NAME_options_str  += '<option value="Zimbabwe">Zimbabwe</option>';
+            sel_NAME.innerHTML = NAME_options_str;
+            div_NAME.appendChild(sel_NAME);
+            var lab_NAME = document.createElement('div');
+            lab_NAME.innerHTML = 'NAME';
+            lab_NAME.className = 'filterlabel';
+            div_NAME.appendChild(lab_NAME);
+            var reset_NAME = document.createElement('div');
+            reset_NAME.innerHTML = 'clear filter';
+            reset_NAME.className = 'filterlabel';
+            reset_NAME.onclick = function() {
+                var options = document.getElementById("sel_NAME").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_NAME.appendChild(reset_NAME);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_Population = document.createElement('div');
+            div_Population.id = "div_Population";
+            div_Population.className= "filterselect";
+            document.getElementById("menu").appendChild(div_Population);
+            sel_Population = document.createElement('select');
+            sel_Population.multiple = true;
+            sel_Population.size = 5;
+            sel_Population.id = "sel_Population";
+            var Population_options_str = "<option value='' unselected></option>";
+            sel_Population.onchange = function(){filterFunc()};
+            Population_options_str  += '<option value="High">High</option>';
+            Population_options_str  += '<option value="Low">Low</option>';
+            Population_options_str  += '<option value="Medium">Medium</option>';
+            Population_options_str  += '<option value="Very High">Very High</option>';
+            Population_options_str  += '<option value="Very Low">Very Low</option>';
+            sel_Population.innerHTML = Population_options_str;
+            div_Population.appendChild(sel_Population);
+            var lab_Population = document.createElement('div');
+            lab_Population.innerHTML = 'Population';
+            lab_Population.className = 'filterlabel';
+            div_Population.appendChild(lab_Population);
+            var reset_Population = document.createElement('div');
+            reset_Population.innerHTML = 'clear filter';
+            reset_Population.className = 'filterlabel';
+            reset_Population.onclick = function() {
+                var options = document.getElementById("sel_Population").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_Population.appendChild(reset_Population);
+        resetLabels([layer_Africa_Countries_0]);
+        map.on("zoomend", function(){
+            resetLabels([layer_Africa_Countries_0]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_Africa_Countries_0]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_Africa_Countries_0]);
+        });
+        </script>
+    </body>
+</html>
